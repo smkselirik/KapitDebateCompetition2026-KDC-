@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Debate Results Dashboard</title>
     <style>
-        /* CSS Styling */
+        /* Base styling */
         body, html {
             margin: 0;
             padding: 0;
@@ -14,8 +14,9 @@
             height: 100%;
         }
 
-        /* Background Image set to 30% opacity and auto-adjusted */
-        .bg-image {
+        /* Background setup: 30% transparent and auto-adjusting */
+        body::before {
+            content: "";
             position: fixed;
             top: 0;
             left: 0;
@@ -25,27 +26,25 @@
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
-            opacity: 0.3; /* 30% transparent */
+            opacity: 0.3;
             z-index: -1;
         }
 
-        /* Dashboard Container */
+        /* Main Dashboard Container */
         .container {
-            position: relative;
             max-width: 1100px;
             margin: 40px auto;
-            padding: 20px 40px;
-            background: rgba(255, 255, 255, 0.9); /* slight white overlay for readability */
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.9); /* Opaque white overlay for text readability */
             border-radius: 12px;
-            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-            z-index: 1;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
 
         h1 {
             text-align: center;
             color: #2c3e50;
-            margin-bottom: 30px;
-            font-size: 2.5em;
+            margin-bottom: 25px;
+            font-size: 2.2em;
         }
 
         /* Tab Navigation */
@@ -53,7 +52,7 @@
             display: flex;
             justify-content: center;
             gap: 10px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
         }
 
         .tab-btn {
@@ -64,6 +63,7 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: 600;
             transition: background 0.3s;
         }
 
@@ -71,57 +71,66 @@
             background-color: #3498db;
         }
 
-        /* Tab Content area */
+        /* Tab Content */
         .tab-content {
             display: none;
-            animation: fadeIn 0.5s;
+            animation: fadeIn 0.4s ease-in-out;
         }
 
         .tab-content.active {
             display: block;
         }
 
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         /* Table Styling */
+        .table-responsive {
+            overflow-x: auto;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
             background: white;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         th, td {
-            padding: 12px 15px;
+            padding: 14px;
             text-align: left;
-            border-bottom: 1px solid #ddd;
+            border-bottom: 1px solid #e0e0e0;
         }
 
         th {
             background-color: #2c3e50;
             color: white;
-            text-transform: uppercase;
-            font-size: 14px;
+            font-weight: 600;
+            white-space: nowrap;
         }
 
-        tr:hover { background-color: #f5f5f5; }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
         }
 
+        tr:hover {
+            background-color: #f1f2f6;
+        }
+        
         .loading {
             text-align: center;
             font-style: italic;
             color: #7f8c8d;
+            padding: 40px 20px;
+            font-size: 1.1em;
         }
     </style>
 </head>
 <body>
-
-    <div class="bg-image"></div>
 
     <div class="container">
         <h1>Debate Results Dashboard</h1>
@@ -133,29 +142,32 @@
         </div>
 
         <div id="prelim" class="tab-content active">
-            <div id="prelim-table" class="loading">Loading Prelim Results...</div>
+            <div class="table-responsive">
+                <div id="prelim-table" class="loading">Fetching Prelim Results...</div>
+            </div>
         </div>
 
         <div id="overall" class="tab-content">
-            <div id="overall-table" class="loading">Loading Overall Results...</div>
+            <div class="table-responsive">
+                <div id="overall-table" class="loading">Fetching Overall Results...</div>
+            </div>
         </div>
 
         <div id="teams" class="tab-content">
-            <div id="teams-table" class="loading">Loading Team Members...</div>
+            <div class="table-responsive">
+                <div id="teams-table" class="loading">Fetching Team Members...</div>
+            </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script>
-        // --- URLs for the CSV Data ---
-        // The one you provided (assuming this is Prelim Results based on context)
-        const prelimCSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?gid=490653394&single=true&output=csv";
-        
-        // ** IMPORTANT: Replace these two links with the specific output=csv links for your other tabs **
-        const overallCSV_URL = "YOUR_OVERALL_RESULTS_CSV_LINK_HERE"; 
-        const masterCSV_URL = "YOUR_MASTER_2_CSV_LINK_HERE"; 
+        // Data Sources
+        const PRELIM_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?gid=490653394&single=true&output=csv";
+        const OVERALL_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?gid=1922779286&single=true&output=csv";
+        const MASTER_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?gid=543182448&single=true&output=csv";
 
-        // Function to switch between tabs
+        // Tab Switching Logic
         function openTab(evt, tabName) {
             let tabContents = document.getElementsByClassName("tab-content");
             for (let i = 0; i < tabContents.length; i++) {
@@ -169,13 +181,8 @@
             evt.currentTarget.classList.add("active");
         }
 
-        // Function to fetch and render standard CSVs (Prelim and Overall)
+        // Standard Table Loader (For Prelim & Overall Tabs)
         function loadStandardTable(url, containerId) {
-            if(url.includes("YOUR_")) {
-                document.getElementById(containerId).innerHTML = "<p style='color:red;'>Please add the correct Google Sheet CSV publish link to the code to view this data.</p>";
-                return;
-            }
-
             Papa.parse(url, {
                 download: true,
                 header: true,
@@ -183,91 +190,84 @@
                 complete: function(results) {
                     let data = results.data;
                     let headers = results.meta.fields;
-
+                    
                     let tableHTML = "<table><thead><tr>";
-                    // Build Headers
-                    headers.forEach(header => {
-                        tableHTML += `<th>${header}</th>`;
-                    });
+                    headers.forEach(header => tableHTML += `<th>${header}</th>`);
                     tableHTML += "</tr></thead><tbody>";
 
-                    // Build Rows
                     data.forEach(row => {
                         tableHTML += "<tr>";
-                        headers.forEach(header => {
-                            tableHTML += `<td>${row[header] || ""}</td>`;
-                        });
+                        headers.forEach(header => tableHTML += `<td>${row[header] || ""}</td>`);
                         tableHTML += "</tr>";
                     });
 
                     tableHTML += "</tbody></table>";
                     document.getElementById(containerId).innerHTML = tableHTML;
+                },
+                error: function() {
+                    document.getElementById(containerId).innerHTML = "Error loading data. Please check the sheet link.";
                 }
             });
         }
 
-        // Function to fetch and specifically format the 'MASTER 2' Tab
+        // Specific Table Loader for MASTER 2 (Filters specific columns)
         function loadMasterTable(url, containerId) {
-            if(url.includes("YOUR_")) {
-                document.getElementById(containerId).innerHTML = "<p style='color:red;'>Please add the correct Google Sheet CSV publish link for 'MASTER 2' to the code to view this data.</p>";
-                return;
-            }
-
             Papa.parse(url, {
                 download: true,
-                header: false, // We use false because we want specific column indexes
+                header: false, // Treat as raw arrays to target specific column indexes
                 skipEmptyLines: true,
                 complete: function(results) {
                     let data = results.data;
                     
-                    // Column Index Mapping (0-indexed array)
-                    // Col B = Index 1 (Name)
-                    // Col D = Index 3 (Form)
-                    // Col E = Index 4 (School Name)
-                    // Col F = Index 5 (Team)
+                    // Array Index Mapping (Google Sheets Columns)
+                    // Col B (Name) = Index 1
+                    // Col D (Form) = Index 3
+                    // Col E (School) = Index 4
+                    // Col F (Team) = Index 5
 
                     let tableHTML = `
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Name</th>
-                                    <th>Form</th>
                                     <th>School Name</th>
                                     <th>Team</th>
+                                    <th>Name</th>
+                                    <th>Form</th>
                                 </tr>
                             </thead>
                             <tbody>
                     `;
 
-                    // Start from index 1 to skip header row of the sheet (assuming row 1 is headers)
+                    // Start loop at index 1 to skip the master sheet's header row
                     for (let i = 1; i < data.length; i++) {
                         let row = data[i];
-                        // ensure row has enough columns
-                        if(row.length >= 6) {
+                        // Ensure the row has enough columns populated to avoid undefined errors
+                        if (row.length >= 6) { 
                             tableHTML += `
                                 <tr>
-                                    <td>${row[1] || "-"}</td>
-                                    <td>${row[3] || "-"}</td>
                                     <td>${row[4] || "-"}</td>
                                     <td>${row[5] || "-"}</td>
+                                    <td>${row[1] || "-"}</td>
+                                    <td>${row[3] || "-"}</td>
                                 </tr>
                             `;
                         }
                     }
-
                     tableHTML += "</tbody></table>";
                     document.getElementById(containerId).innerHTML = tableHTML;
+                },
+                error: function() {
+                    document.getElementById(containerId).innerHTML = "Error loading data. Please check the sheet link.";
                 }
             });
         }
 
-        // Initialize fetching on page load
+        // Initialize Data Fetching on Window Load
         window.onload = function() {
-            loadStandardTable(prelimCSV_URL, 'prelim-table');
-            loadStandardTable(overallCSV_URL, 'overall-table');
-            loadMasterTable(masterCSV_URL, 'teams-table');
+            loadStandardTable(PRELIM_URL, 'prelim-table');
+            loadStandardTable(OVERALL_URL, 'overall-table');
+            loadMasterTable(MASTER_URL, 'teams-table');
         };
     </script>
-
 </body>
 </html>
