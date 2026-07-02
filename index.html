@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debate Results Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        /* Background Configuration */
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #333;
+            position: relative;
+            min-height: 100vh;
+        }
+
+        body::before {
+            content: "";
+            background-image: url('https://i.ibb.co/5xf5S4F1/Gemini-Generated-Image-lunqwclunqwclunq.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            /* 30% transparent means 70% opacity */
+            opacity: 0.7; 
+            z-index: -1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.85); /* Frost effect to make text readable */
+            min-height: 100vh;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            text-transform: uppercase;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #ecf0f1;
+            border: 2px solid #bdc3c7;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            background-color: #3498db;
+            color: white;
+            border-color: #2980b9;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #2c3e50;
+            color: white;
+        }
+
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .team-card {
+            background: #fff;
+            border-left: 5px solid #3498db;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .team-card h3 {
+            margin-top: 0;
+            color: #2980b9;
+        }
+
+        .loader {
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            color: #e74c3c;
+            padding: 20px;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Debate Championship Dashboard</h1>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('prelim')">Prelim Results</button>
+            <button class="tab-btn" onclick="showTab('overall')">Overall Results</button>
+            <button class="tab-btn" onclick="showTab('teams')">Team Members (MASTER)</button>
+        </div>
+
+        <div id="loader" class="loader">Loading data from Google Sheets...</div>
+
+        <div id="prelim" class="tab-content active">
+            <h2>Keputusan Preliminary Round</h2>
+            <div id="prelim-data"></div>
+        </div>
+
+        <div id="overall" class="tab-content">
+            <h2>Keputusan Keseluruhan (Overall)</h2>
+            <div id="overall-data"></div>
+        </div>
+
+        <div id="teams" class="tab-content">
+            <h2>Senarai Peserta / Team Members</h2>
+            <div id="teams-data"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- IMPORTANT: REPLACE THESE URLs WITH YOUR SPECIFIC TAB CSV URLs ---
+        // To get these, go to File -> Share -> Publish to web -> select the specific tab -> Comma-separated values (.csv)
+        const URL_PRELIM = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?output=csv&gid=0'; // Replace gid=0 with actual Prelim tab gid
+        const URL_OVERALL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?output=csv&gid=123456'; // Replace with Overall tab URL
+        const URL_MASTER = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUY7U6_iO_42hj60Uxln6O-YjwkQEs_m17oN00xKi8Dgn6okSGrM6oU_jBw88qjtsiuI5RJfoYvyzI/pub?output=csv&gid=789101'; // Replace with MASTER tab URL
+
+        // Function to switch tabs
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // Parse CSV using PapaParse
+        function fetchCSV(url, callback) {
+            Papa.parse(url, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    callback(results.data);
+                },
+                error: function(err) {
+                    console.error("Error loading CSV:", err);
+                    callback([]);
+                }
+            });
+        }
+
+        // Generate HTML Table from JSON data
+        function generateTable(data) {
+            if (!data || data.length === 0) return "<p>No data available or incorrect link.</p>";
+            
+            let headers = Object.keys(data[0]);
+            let html = '<table><thead><tr>';
+            
+            headers.forEach(header => {
+                html += `<th>${header}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            data.forEach(row => {
+                html += '<tr>';
+                headers.forEach(header => {
+                    html += `<td>${row[header] || ''}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+
+        // Process MASTER data mapping requirements
+        // Name = Col B, Form = Col D, School = Col E, Team = Col F
+        function processMasterData(data) {
+            if (!data || data.length === 0) return "<p>No MASTER data available.</p>";
+
+            // Group by Team (Column F)
+            let teams = {};
+            let html = '';
+
+            // Using Object.values because headers might differ. Assuming columns by index if headers are unknown, 
+            // but PapaParse uses Header names by default. To be safe based on instructions:
+            data.forEach(row => {
+                let cols = Object.values(row);
+                // Based on standard A=0, B=1, C=2, D=3, E=4, F=5
+                let name = cols[1]; // Column B
+                let form = cols[3]; // Column D
+                let school = cols[4]; // Column E
+                let teamName = cols[5]; // Column F
+
+                if (teamName) {
+                    if (!teams[teamName]) {
+                        teams[teamName] = {
+                            school: school,
+                            members: []
+                        };
+                    }
+                    teams[teamName].members.push(`${name} (Form ${form})`);
+                }
+            });
+
+            // Build UI Cards for Teams
+            for (let team in teams) {
+                html += `
+                <div class="team-card">
+                    <h3>Pasukan: ${team}</h3>
+                    <p><strong>Sekolah (School):</strong> ${teams[team].school}</p>
+                    <p><strong>Ahli (Members):</strong></p>
+                    <ul>
+                        ${teams[team].members.map(m => `<li>${m}</li>`).join('')}
+                    </ul>
+                </div>`;
+            }
+
+            return html;
+        }
+
+        // Initialize App
+        function init() {
+            let loadedCount = 0;
+
+            // Load Prelim
+            fetchCSV(URL_PRELIM, function(data) {
+                document.getElementById('prelim-data').innerHTML = generateTable(data);
+                checkLoad();
+            });
+
+            // Load Overall
+            fetchCSV(URL_OVERALL, function(data) {
+                document.getElementById('overall-data').innerHTML = generateTable(data);
+                checkLoad();
+            });
+
+            // Load Master
+            fetchCSV(URL_MASTER, function(data) {
+                // To force array index mapping for MASTER, we could parse without headers, 
+                // but PapaParse with header:true stores object values in column order.
+                document.getElementById('teams-data').innerHTML = processMasterData(data);
+                checkLoad();
+            });
+
+            function checkLoad() {
+                loadedCount++;
+                if (loadedCount === 3) {
+                    document.getElementById('loader').style.display = 'none';
+                }
+            }
+        }
+
+        // Run when window loads
+        window.onload = init;
+    </script>
+</body>
+</html>
